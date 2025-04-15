@@ -1,5 +1,4 @@
-import React from 'react';
-import GameClock from './components/GameClock';
+import GameClock from './components/GameClock.tsx';
 import './App.css';
 
 function App() {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // Type definitions
 type PlaybackMode = 'live' | 'fast' | 'manual';
@@ -10,7 +10,7 @@ interface GameClockState {
   mode: PlaybackMode;
 }
 
-const GameClock: React.FC = () => {
+const GameClock = () => {
   // Constants
   const QUARTER_TIME = 600; // 10 minutes in seconds
 
@@ -33,7 +33,7 @@ const GameClock: React.FC = () => {
   // Timer tick logic based on mode
   useEffect(() => {
     if (!clockState.clockRunning) {
-      if (timerRef.current) {
+      if (timerRef.current !== null) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
@@ -46,7 +46,7 @@ const GameClock: React.FC = () => {
     }
 
     // Clear any existing interval
-    if (timerRef.current) {
+    if (timerRef.current !== null) {
       clearInterval(timerRef.current);
     }
 
@@ -60,7 +60,7 @@ const GameClock: React.FC = () => {
         
         if (prevState.timeRemaining <= 0) {
           // Stop the clock when time reaches zero
-          if (timerRef.current) {
+          if (timerRef.current !== null) {
             clearInterval(timerRef.current);
           }
           return { ...prevState, clockRunning: false };
@@ -75,7 +75,7 @@ const GameClock: React.FC = () => {
 
     // Cleanup function
     return () => {
-      if (timerRef.current) {
+      if (timerRef.current !== null) {
         clearInterval(timerRef.current);
       }
     };
