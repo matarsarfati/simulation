@@ -1,11 +1,14 @@
-import { useState, forwardRef, useImperativeHandle } from 'react';
+import { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
+import SurveyModal, { SurveyResponses } from './SurveyModal';
+import SAAInputModal from './SAAInputModal';
+import { SAALevel } from './SAADisplay';
 
 // Type definitions
 export type StatType = "points" | "assists" | "rebounds" | "turnovers" | "goodDecisions" | "badDecisions";
 export type PlayerStatus = "On Court" | "Bench";
 
-export type PlayerStatsByQuarter = {
-  [quarter: number]: Record<StatType, number>;
+export type PlayerStatsByTimeline = {
+  [timepoint: number]: Record<StatType, number>;
 };
 
 export type PlayerInfo = {
@@ -15,11 +18,21 @@ export type PlayerInfo = {
   status: PlayerStatus;
 };
 
+export type CompleteTimelineData = {
+  timelinePoint: number;
+  stats: Record<StatType, number>;
+  surveyResponses: SurveyResponses | null;
+  saaValue: number | null;
+  saaLevel: SAALevel | null;
+};
+
 interface PlayerPanelProps {
   currentQuarter: number;
+  currentTimelinePoint: number;
+  onTimelineDataPush?: (data: CompleteTimelineData) => void;
 }
 
-const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter }, ref) => {
+const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter, currentTimelinePoint, onTimelineDataPush }, ref) => {
   // Player information state
   const [playerInfo, setPlayerInfo] = useState<PlayerInfo>({
     name: "Player 7",
@@ -28,13 +41,26 @@ const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter }, ref) 
     status: "On Court"
   });
 
-  // Stats tracking state
-  const [statsByQuarter, setStatsByQuarter] = useState<PlayerStatsByQuarter>({
+  // Stats tracking state (now by timeline point instead of quarter)
+  const [statsByTimeline, setStatsByTimeline] = useState<PlayerStatsByTimeline>({
     1: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 },
     2: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 },
     3: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 },
-    4: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 }
+    4: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 },
+    5: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 },
+    6: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 },
+    7: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 }
   });
+
+  // Modal states for data collection flow
+  const [isSurveyOpen, setIsSurveyOpen] = useState<boolean>(false);
+  const [isSAAInputOpen, setIsSAAInputOpen] = useState<boolean>(false);
+  const [tempSurveyResponses, setTempSurveyResponses] = useState<SurveyResponses | null>(null);
+  
+  // For debugging
+  useEffect(() => {
+    console.log(`PlayerPanel received currentTimelinePoint: T${currentTimelinePoint}`);
+  }, [currentTimelinePoint]);
 
   // Toggle player status
   const toggleStatus = () => {
@@ -54,27 +80,106 @@ const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter }, ref) 
 
   // Log a new player action
   const logAction = (statType: StatType) => {
-    setStatsByQuarter(prev => {
-      const quarterStats = { ...prev[currentQuarter] };
-      quarterStats[statType] += 1;
+    setStatsByTimeline(prev => {
+      const timelineStats = { ...prev[currentTimelinePoint] };
+      timelineStats[statType] += 1;
       
       return {
         ...prev,
-        [currentQuarter]: quarterStats
+        [currentTimelinePoint]: timelineStats
       };
     });
   };
 
-  // Current quarter's stats
-  const currentStats = statsByQuarter[currentQuarter];
+  // Start the save flow by opening the survey
+  const startSaveFlow = () => {
+    console.log("Starting save flow - opening survey modal");
+    setIsSurveyOpen(true);
+  };
+  
+  // Handle survey submission
+  // This is the key part of PlayerPanel.tsx that needs fixing for survey data handling
+
+// Handle survey submission
+const handleSurveySubmit = (responses: SurveyResponses) => {
+    console.log("Survey submitted with responses:", responses);
+    
+    // Store survey responses temporarily
+    setTempSurveyResponses(responses);
+    
+    // Close survey modal
+    setIsSurveyOpen(false);
+    
+    // Important: Open the sAA input modal AFTER closing the survey modal
+    // Use setTimeout to ensure state updates have happened
+    setTimeout(() => {
+      console.log("Opening sAA input modal");
+      setIsSAAInputOpen(true);
+    }, 100);
+  };
+  
+  // Handle sAA input submission
+  const handleSAASubmit = (value: number, level: SAALevel) => {
+    console.log(`sAA input submitted with value: ${value}, level: ${level}`);
+    
+    // Close sAA input modal
+    setIsSAAInputOpen(false);
+    
+    // Get the current data for this timeline point
+    const currentTimelineData = { ...statsByTimeline[currentTimelinePoint] };
+    
+    // Verify we have the survey data
+    console.log("Survey data to be included:", tempSurveyResponses);
+    
+    // Create complete data package with all collected information
+    const completeData: CompleteTimelineData = {
+      timelinePoint: currentTimelinePoint,
+      stats: currentTimelineData,
+      surveyResponses: tempSurveyResponses,
+      saaValue: value,
+      saaLevel: level
+    };
+    
+    console.log("Complete data package:", completeData);
+    
+    // Call the parent callback if provided
+    if (onTimelineDataPush) {
+      console.log(`Pushing complete data for T${currentTimelinePoint} to parent`);
+      onTimelineDataPush(completeData);
+    }
+    
+    // Reset the data for this timeline point
+    setStatsByTimeline(prev => ({
+      ...prev,
+      [currentTimelinePoint]: { points: 0, assists: 0, rebounds: 0, turnovers: 0, goodDecisions: 0, badDecisions: 0 }
+    }));
+    
+    // Reset temp survey data
+    setTempSurveyResponses(null);
+  };
+  
+  // Handle modal cancellation
+  const handleCancel = () => {
+    console.log("Workflow cancelled by user");
+    setIsSurveyOpen(false);
+    setIsSAAInputOpen(false);
+    setTempSurveyResponses(null);
+  };
+
+  // Current timeline point's stats
+  const currentStats = statsByTimeline[currentTimelinePoint];
   
   // Expose methods for parent components
   useImperativeHandle(ref, () => ({
     logAction,
     setPlayerStatus,
     getStatus: () => playerInfo.status,
-    getStats: () => statsByQuarter
+    getStats: () => statsByTimeline,
+    startSaveFlow
   }));
+
+  // Determine if the save button should be disabled
+  const isSaveDisabled = currentTimelinePoint >= 7;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 w-full max-w-md">
@@ -83,7 +188,7 @@ const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter }, ref) 
         <div>
           <h2 className="text-xl font-bold text-gray-900">{playerInfo.name}</h2>
           <div className="text-gray-700 text-sm">
-            #{playerInfo.jerseyNumber} • Age {playerInfo.age}
+            #{playerInfo.jerseyNumber} • Age {playerInfo.age} • Q{currentQuarter}
           </div>
         </div>
         
@@ -103,10 +208,10 @@ const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter }, ref) 
         </div>
       </div>
       
-      {/* Stats Display */}
+      {/* Stats Display - Now based on Timeline segment */}
       <div className="mb-4">
         <h3 className="text-md font-semibold mb-2 bg-blue-600 px-2 py-1 rounded text-white">
-          Quarter {currentQuarter} Stats
+          T{currentTimelinePoint} Stats
         </h3>
         
         <div className="grid grid-cols-3 gap-3">
@@ -136,6 +241,19 @@ const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter }, ref) 
           </div>
         </div>
       </div>
+      
+      {/* Save T# Stats Button - Starts the save flow */}
+      <button
+        onClick={startSaveFlow}
+        disabled={isSaveDisabled}
+        className={`w-full py-2 px-4 mb-4 ${
+          isSaveDisabled 
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-indigo-600 hover:bg-indigo-700'
+        } text-white font-medium rounded transition-colors duration-150`}
+      >
+        {isSaveDisabled ? 'Timeline Complete' : `Save T${currentTimelinePoint} Stats`}
+      </button>
       
       {/* Action Buttons */}
       <div>
@@ -183,6 +301,20 @@ const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter }, ref) 
           </button>
         </div>
       </div>
+      
+      {/* Survey Modal */}
+      <SurveyModal 
+        isOpen={isSurveyOpen}
+        onClose={handleCancel}
+        onSubmit={handleSurveySubmit}
+      />
+      
+      {/* SAA Input Modal */}
+      <SAAInputModal 
+        isOpen={isSAAInputOpen}
+        onClose={handleCancel}
+        onSubmit={handleSAASubmit}
+      />
     </div>
   );
 });

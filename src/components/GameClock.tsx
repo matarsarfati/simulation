@@ -5,6 +5,7 @@ type PlaybackMode = 'live' | 'fast' | 'manual';
 
 interface GameClockProps {
   onQuarterChange?: (quarter: number) => void;
+  currentTimelinePoint?: number;
   ref?: React.Ref<any>;
 }
 
@@ -15,7 +16,7 @@ interface GameClockState {
   mode: PlaybackMode;
 }
 
-const GameClock = forwardRef<any, GameClockProps>(({ onQuarterChange }, ref) => {
+const GameClock = forwardRef<any, GameClockProps>(({ onQuarterChange, currentTimelinePoint = 1 }, ref) => {
   // Constants
   const QUARTER_TIME = 600; // 10 minutes in seconds
 
@@ -26,6 +27,11 @@ const GameClock = forwardRef<any, GameClockProps>(({ onQuarterChange }, ref) => 
     clockRunning: false,
     mode: 'live'
   });
+
+  // For debugging
+  useEffect(() => {
+    console.log(`GameClock received currentTimelinePoint: T${currentTimelinePoint}`);
+  }, [currentTimelinePoint]);
 
   // Refs
   const timerRef = useRef<number | null>(null);
@@ -225,18 +231,43 @@ const GameClock = forwardRef<any, GameClockProps>(({ onQuarterChange }, ref) => 
         </button>
       </div>
 
-      {/* Timeline visualization scaffold */}
+      {/* Timeline visualization with current point highlighted */}
       <div className="mt-10 w-full bg-gray-200 p-4 rounded-lg">
-        <div className="text-sm font-medium text-gray-700 mb-2">Timeline</div>
+        <div className="text-sm font-medium text-gray-700 mb-2">
+          Timeline (Current: T{currentTimelinePoint})
+        </div>
         <div className="flex justify-between items-center">
-          {[1, 2, 3, 4, 5, 6, 7].map(marker => (
-            <div key={marker} className="flex flex-col items-center">
-              <div className="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs">
-                T{marker}
+          {[1, 2, 3, 4, 5, 6, 7].map(marker => {
+            // Determine marker styling based on current timeline point
+            let markerStyles = '';
+            let connectorStyles = '';
+            
+            if (marker === currentTimelinePoint) {
+              // Current marker
+              markerStyles = 'bg-blue-600 text-white ring-2 ring-blue-300';
+            } else if (marker < currentTimelinePoint) {
+              // Completed marker
+              markerStyles = 'bg-green-500 text-white';
+              connectorStyles = 'bg-green-300';
+            } else {
+              // Future marker
+              markerStyles = 'bg-gray-400 text-white';
+              connectorStyles = 'bg-gray-300';
+            }
+            
+            return (
+              <div key={marker} className="flex flex-col items-center">
+                <div 
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${markerStyles}`}
+                >
+                  T{marker}
+                </div>
+                {marker < 7 && (
+                  <div className={`h-1 w-16 mt-2 ${connectorStyles}`}></div>
+                )}
               </div>
-              <div className="h-1 w-16 bg-gray-300 mt-2" style={{ display: marker === 7 ? 'none' : 'block' }}></div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

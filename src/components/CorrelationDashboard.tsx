@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { EventData } from './EventBlockGenerator';
 import { StatType } from './PlayerPanel';
 
@@ -27,18 +27,29 @@ const CorrelationDashboard: React.FC<CorrelationDashboardProps> = ({
 }) => {
   // Transform timeline events into correlation data points
   const correlationData = useMemo(() => {
+    console.log("Processing timeline events for correlation data:", timelineEvents);
+    
     return timelineEvents.map(event => {
       // Calculate performance score based on actions
       const performanceScore = calculatePerformanceScore(event.actions);
       
+      // Get survey responses or use default values
+      const surveyResponses = event.surveyResponses || { 
+        emotionalArousal: 0, 
+        momentum: 0, 
+        flow: 0 
+      };
+      
+      console.log("Survey responses for T" + event.timelinePoint + ":", surveyResponses);
+      
       // Normalize survey responses to 0-100 scale
-      const izof = event.surveyResponses ? normalizeValue(event.surveyResponses.emotionalArousal, 1, 9, 0, 100) : 0;
-      const momentum = event.surveyResponses ? normalizeValue(event.surveyResponses.momentum, 1, 9, 0, 100) : 0;
-      const flow = event.surveyResponses ? normalizeValue(event.surveyResponses.flow, 1, 9, 0, 100) : 0;
+      const izof = normalizeValue(surveyResponses.emotionalArousal, 1, 9, 0, 100);
+      const momentum = normalizeValue(surveyResponses.momentum, 1, 9, 0, 100);
+      const flow = normalizeValue(surveyResponses.flow, 1, 9, 0, 100);
       
       // Normalize sAA values to 0-100 scale
       // Assuming sAA typically ranges from 30-100 U/mL
-      const saa = event.saaValue ? normalizeValue(event.saaValue, 30, 100, 0, 100) : 0;
+      const saa = event.saaValue ? normalizeValue(event.saaValue, 30, 160, 0, 100) : 0;
       
       return {
         timePoint: `T${event.timelinePoint}`,
@@ -49,9 +60,9 @@ const CorrelationDashboard: React.FC<CorrelationDashboardProps> = ({
         saa,
         performanceScore,
         // Store original values for display in table
-        originalIzof: event.surveyResponses?.emotionalArousal || 0,
-        originalMomentum: event.surveyResponses?.momentum || 0,
-        originalFlow: event.surveyResponses?.flow || 0,
+        originalIzof: surveyResponses.emotionalArousal,
+        originalMomentum: surveyResponses.momentum,
+        originalFlow: surveyResponses.flow,
         originalSaa: event.saaValue || 0
       };
     });
