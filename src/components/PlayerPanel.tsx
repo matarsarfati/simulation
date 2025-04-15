@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 
 // Type definitions
 export type StatType = "points" | "assists" | "rebounds" | "turnovers" | "goodDecisions" | "badDecisions";
@@ -19,7 +19,7 @@ interface PlayerPanelProps {
   currentQuarter: number;
 }
 
-const PlayerPanel: React.FC<PlayerPanelProps> = ({ currentQuarter }) => {
+const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter }, ref) => {
   // Player information state
   const [playerInfo, setPlayerInfo] = useState<PlayerInfo>({
     name: "Player 7",
@@ -44,6 +44,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ currentQuarter }) => {
     }));
   };
 
+  // Set player status directly (for external components)
+  const setPlayerStatus = (status: PlayerStatus) => {
+    setPlayerInfo(prev => ({
+      ...prev,
+      status
+    }));
+  };
+
   // Log a new player action
   const logAction = (statType: StatType) => {
     setStatsByQuarter(prev => {
@@ -59,14 +67,22 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ currentQuarter }) => {
 
   // Current quarter's stats
   const currentStats = statsByQuarter[currentQuarter];
+  
+  // Expose methods for parent components
+  useImperativeHandle(ref, () => ({
+    logAction,
+    setPlayerStatus,
+    getStatus: () => playerInfo.status,
+    getStats: () => statsByQuarter
+  }));
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 w-full max-w-md">
       {/* Player Header */}
       <div className="flex justify-between items-center mb-4 border-b pb-3">
         <div>
-          <h2 className="text-xl font-bold">{playerInfo.name}</h2>
-          <div className="text-gray-600 text-sm">
+          <h2 className="text-xl font-bold text-gray-900">{playerInfo.name}</h2>
+          <div className="text-gray-700 text-sm">
             #{playerInfo.jerseyNumber} • Age {playerInfo.age}
           </div>
         </div>
@@ -89,64 +105,64 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ currentQuarter }) => {
       
       {/* Stats Display */}
       <div className="mb-4">
-        <h3 className="text-md font-semibold mb-2 bg-blue-100 px-2 py-1 rounded">
+        <h3 className="text-md font-semibold mb-2 bg-blue-600 px-2 py-1 rounded text-white">
           Quarter {currentQuarter} Stats
         </h3>
         
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-blue-50 p-2 rounded">
-            <div className="text-center text-2xl font-bold">{currentStats.points}</div>
-            <div className="text-center text-xs text-gray-700">Points</div>
+          <div className="bg-blue-100 p-2 rounded">
+            <div className="text-center text-2xl font-bold text-gray-900">{currentStats.points}</div>
+            <div className="text-center text-xs font-medium text-gray-800">Points</div>
           </div>
-          <div className="bg-blue-50 p-2 rounded">
-            <div className="text-center text-2xl font-bold">{currentStats.assists}</div>
-            <div className="text-center text-xs text-gray-700">Assists</div>
+          <div className="bg-blue-100 p-2 rounded">
+            <div className="text-center text-2xl font-bold text-gray-900">{currentStats.assists}</div>
+            <div className="text-center text-xs font-medium text-gray-800">Assists</div>
           </div>
-          <div className="bg-blue-50 p-2 rounded">
-            <div className="text-center text-2xl font-bold">{currentStats.rebounds}</div>
-            <div className="text-center text-xs text-gray-700">Rebounds</div>
+          <div className="bg-blue-100 p-2 rounded">
+            <div className="text-center text-2xl font-bold text-gray-900">{currentStats.rebounds}</div>
+            <div className="text-center text-xs font-medium text-gray-800">Rebounds</div>
           </div>
-          <div className="bg-blue-50 p-2 rounded">
-            <div className="text-center text-2xl font-bold">{currentStats.turnovers}</div>
-            <div className="text-center text-xs text-gray-700">Turnovers</div>
+          <div className="bg-blue-100 p-2 rounded">
+            <div className="text-center text-2xl font-bold text-gray-900">{currentStats.turnovers}</div>
+            <div className="text-center text-xs font-medium text-gray-800">Turnovers</div>
           </div>
-          <div className="bg-blue-50 p-2 rounded">
-            <div className="text-center text-2xl font-bold">{currentStats.goodDecisions}</div>
-            <div className="text-center text-xs text-gray-700">Good Dec.</div>
+          <div className="bg-blue-100 p-2 rounded">
+            <div className="text-center text-2xl font-bold text-gray-900">{currentStats.goodDecisions}</div>
+            <div className="text-center text-xs font-medium text-gray-800">Good Dec.</div>
           </div>
-          <div className="bg-blue-50 p-2 rounded">
-            <div className="text-center text-2xl font-bold">{currentStats.badDecisions}</div>
-            <div className="text-center text-xs text-gray-700">Bad Dec.</div>
+          <div className="bg-blue-100 p-2 rounded">
+            <div className="text-center text-2xl font-bold text-gray-900">{currentStats.badDecisions}</div>
+            <div className="text-center text-xs font-medium text-gray-800">Bad Dec.</div>
           </div>
         </div>
       </div>
       
       {/* Action Buttons */}
       <div>
-        <h3 className="text-md font-semibold mb-2">Record Actions</h3>
+        <h3 className="text-md font-semibold mb-2 text-gray-800">Record Actions</h3>
         
         <div className="grid grid-cols-2 gap-2 mb-2">
           <button 
             onClick={() => logAction("points")}
-            className="py-1 px-3 bg-green-500 hover:bg-green-600 text-white rounded transition-colors duration-150"
+            className="py-1 px-3 bg-green-500 hover:bg-green-600 text-white rounded transition-colors duration-150 font-medium"
           >
             + Point
           </button>
           <button 
             onClick={() => logAction("assists")}
-            className="py-1 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors duration-150"
+            className="py-1 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors duration-150 font-medium"
           >
             + Assist
           </button>
           <button 
             onClick={() => logAction("rebounds")}
-            className="py-1 px-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors duration-150"
+            className="py-1 px-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors duration-150 font-medium"
           >
             + Rebound
           </button>
           <button 
             onClick={() => logAction("turnovers")}
-            className="py-1 px-3 bg-red-500 hover:bg-red-600 text-white rounded transition-colors duration-150"
+            className="py-1 px-3 bg-red-500 hover:bg-red-600 text-white rounded transition-colors duration-150 font-medium"
           >
             + Turnover
           </button>
@@ -155,13 +171,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ currentQuarter }) => {
         <div className="grid grid-cols-2 gap-2">
           <button 
             onClick={() => logAction("goodDecisions")}
-            className="py-1 px-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded transition-colors duration-150"
+            className="py-1 px-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded transition-colors duration-150 font-medium"
           >
             + Good Decision
           </button>
           <button 
             onClick={() => logAction("badDecisions")}
-            className="py-1 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors duration-150"
+            className="py-1 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors duration-150 font-medium"
           >
             + Bad Decision
           </button>
@@ -169,6 +185,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = ({ currentQuarter }) => {
       </div>
     </div>
   );
-};
+});
 
 export default PlayerPanel;

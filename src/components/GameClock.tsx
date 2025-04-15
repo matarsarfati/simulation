@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 
 // Type definitions
 type PlaybackMode = 'live' | 'fast' | 'manual';
 
 interface GameClockProps {
   onQuarterChange?: (quarter: number) => void;
+  ref?: React.Ref<any>;
 }
 
 interface GameClockState {
@@ -14,7 +15,7 @@ interface GameClockState {
   mode: PlaybackMode;
 }
 
-const GameClock: React.FC<GameClockProps> = ({ onQuarterChange }) => {
+const GameClock = forwardRef<any, GameClockProps>(({ onQuarterChange }, ref) => {
   // Constants
   const QUARTER_TIME = 600; // 10 minutes in seconds
 
@@ -91,6 +92,22 @@ const GameClock: React.FC<GameClockProps> = ({ onQuarterChange }) => {
       }
     };
   }, [clockState.clockRunning, clockState.mode]);
+
+  // Expose methods to parent components
+  useImperativeHandle(ref, () => ({
+    advanceTime: (seconds: number) => {
+      setClockState(prevState => {
+        // Calculate new time remaining
+        const newTimeRemaining = Math.max(0, prevState.timeRemaining - seconds);
+        return {
+          ...prevState,
+          timeRemaining: newTimeRemaining
+        };
+      });
+    },
+    getQuarter: () => clockState.currentQuarter,
+    getRemainingTime: () => clockState.timeRemaining
+  }));
 
   // Handler functions
   const startClock = () => {
@@ -224,6 +241,6 @@ const GameClock: React.FC<GameClockProps> = ({ onQuarterChange }) => {
       </div>
     </div>
   );
-};
+});
 
 export default GameClock;
