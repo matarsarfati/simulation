@@ -3,6 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 // Type definitions
 type PlaybackMode = 'live' | 'fast' | 'manual';
 
+interface GameClockProps {
+  onQuarterChange?: (quarter: number) => void;
+}
+
 interface GameClockState {
   currentQuarter: number;     // values 1-4
   timeRemaining: number;      // in seconds (e.g., 600 = 10:00)
@@ -10,7 +14,7 @@ interface GameClockState {
   mode: PlaybackMode;
 }
 
-const GameClock = () => {
+const GameClock: React.FC<GameClockProps> = ({ onQuarterChange }) => {
   // Constants
   const QUARTER_TIME = 600; // 10 minutes in seconds
 
@@ -29,6 +33,13 @@ const GameClock = () => {
   const minutes = Math.floor(clockState.timeRemaining / 60);
   const seconds = clockState.timeRemaining % 60;
   const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+  // Notify parent about quarter changes
+  useEffect(() => {
+    if (onQuarterChange) {
+      onQuarterChange(clockState.currentQuarter);
+    }
+  }, [clockState.currentQuarter, onQuarterChange]);
 
   // Timer tick logic based on mode
   useEffect(() => {
@@ -131,7 +142,7 @@ const GameClock = () => {
   const canAdvance = clockState.mode === 'manual' && clockState.timeRemaining > 0;
 
   return (
-    <div className="flex flex-col items-center bg-gray-100 p-6 rounded-lg shadow-md">
+    <div className="flex flex-col items-center bg-white p-6 rounded-lg shadow-md">
       {/* Quarter indicator */}
       <div className="text-2xl font-bold mb-2 bg-blue-600 text-white px-4 py-1 rounded">
         Q{clockState.currentQuarter}
