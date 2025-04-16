@@ -2,6 +2,7 @@ import { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
 import SurveyModal, { SurveyResponses } from './SurveyModal';
 import SAAInputModal from './SAAInputModal';
 import { SAALevel } from './SAADisplay';
+import { calculateSAAValue } from '../utils/calculationUtils';
 
 // Type definitions
 export type StatType = "points" | "assists" | "rebounds" | "turnovers" | "goodDecisions" | "badDecisions";
@@ -98,55 +99,71 @@ const PlayerPanel = forwardRef<any, PlayerPanelProps>(({ currentQuarter, current
   };
   
   // Handle survey submission
-  // This is the key part of PlayerPanel.tsx that needs fixing for survey data handling
-
-// Handle survey submission
-const handleSurveySubmit = (responses: SurveyResponses) => {
+  // Fixed to correctly store survey responses
+  const handleSurveySubmit = (responses: SurveyResponses) => {
     console.log("Survey submitted with responses:", responses);
     
-    // Store survey responses temporarily
-    setTempSurveyResponses(responses);
+    // Immediately store responses to ensure they're properly captured
+    setTempSurveyResponses({...responses});
     
     // Close survey modal
     setIsSurveyOpen(false);
     
-    // Important: Open the sAA input modal AFTER closing the survey modal
-    // Use setTimeout to ensure state updates have happened
+    // Open the sAA input modal after a short delay to ensure state updates
     setTimeout(() => {
-      console.log("Opening sAA input modal");
+      console.log("Opening sAA input modal with survey data:", responses);
       setIsSAAInputOpen(true);
-    }, 100);
+    }, 50);
   };
   
   // Handle sAA input submission
-  const handleSAASubmit = (value: number, level: SAALevel) => {
+  // Handle sAA input submission
+const handleSAASubmit = (value: number, level: SAALevel) => {
     console.log(`sAA input submitted with value: ${value}, level: ${level}`);
     
-    // Close sAA input modal
-    setIsSAAInputOpen(false);
+    // Make sure we have the survey data
+    if (!tempSurveyResponses) {
+      console.error("Missing survey responses when submitting sAA value");
+      return;
+    }
+    
+    // Get deep copy of survey responses to avoid reference issues
+    const surveyData = {...tempSurveyResponses};
+    
+    // Calculate sAA value based on survey responses, but don't use the result directly
+    // This is just to verify our model is working correctly
+    const calculatedResult = calculateSAAValue(surveyData);
+    console.log("Model calculated sAA:", calculatedResult.value, calculatedResult.level);
+    
+    // Use the provided value for consistency with the user's input
+    // But determine the level based on the thresholds in our utility
+    const effectiveLevel = 
+      value < 50 ? 'low' : 
+      value > 80 ? 'high' : 
+      'moderate';
     
     // Get the current data for this timeline point
     const currentTimelineData = { ...statsByTimeline[currentTimelinePoint] };
-    
-    // Verify we have the survey data
-    console.log("Survey data to be included:", tempSurveyResponses);
     
     // Create complete data package with all collected information
     const completeData: CompleteTimelineData = {
       timelinePoint: currentTimelinePoint,
       stats: currentTimelineData,
-      surveyResponses: tempSurveyResponses,
+      surveyResponses: surveyData,
       saaValue: value,
-      saaLevel: level
+      saaLevel: effectiveLevel
     };
     
-    console.log("Complete data package:", completeData);
+    console.log("Complete timeline data package:", completeData);
     
     // Call the parent callback if provided
     if (onTimelineDataPush) {
       console.log(`Pushing complete data for T${currentTimelinePoint} to parent`);
       onTimelineDataPush(completeData);
     }
+    
+    // Close sAA input modal
+    setIsSAAInputOpen(false);
     
     // Reset the data for this timeline point
     setStatsByTimeline(prev => ({

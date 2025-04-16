@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { EventData } from './EventBlockGenerator';
-import { StatType } from './PlayerPanel';
+import { calculatePerformanceScore, normalizeValue } from '../utils/calculationUtils';
 
 // Define the correlation data point type
 export type CorrelationDataPoint = {
@@ -30,7 +31,7 @@ const CorrelationDashboard: React.FC<CorrelationDashboardProps> = ({
     console.log("Processing timeline events for correlation data:", timelineEvents);
     
     return timelineEvents.map(event => {
-      // Calculate performance score based on actions
+      // Calculate performance score based on actions using utility function
       const performanceScore = calculatePerformanceScore(event.actions);
       
       // Get survey responses or use default values
@@ -48,7 +49,7 @@ const CorrelationDashboard: React.FC<CorrelationDashboardProps> = ({
       const flow = normalizeValue(surveyResponses.flow, 1, 9, 0, 100);
       
       // Normalize sAA values to 0-100 scale
-      // Assuming sAA typically ranges from 30-100 U/mL
+      // Assuming sAA typically ranges from 30-160 U/mL
       const saa = event.saaValue ? normalizeValue(event.saaValue, 30, 160, 0, 100) : 0;
       
       return {
@@ -119,95 +120,6 @@ const CorrelationDashboard: React.FC<CorrelationDashboardProps> = ({
     });
   }, [correlationData]);
 
-  // Helper function to calculate performance score from actions
-  function calculatePerformanceScore(actions: StatType[]): number {
-    // Define weights for different action types
-    const weights: Record<StatType, number> = {
-      points: 10,
-      assists: 8,
-      rebounds: 6,
-      turnovers: -5,
-      goodDecisions: 7,
-      badDecisions: -6
-    };
-    
-    // Calculate weighted sum
-    const score = actions.reduce((total, action) => total + weights[action], 0);
-    
-    // Normalize to 0-100 scale and ensure it stays within range
-    return Math.max(0, Math.min(100, score + 50)); // Adding offset to center around 50
-  }
-  
-  // Helper function to normalize values to a specific range
-  function normalizeValue(value: number, fromMin: number, fromMax: number, toMin: number, toMax: number): number {
-    return ((value - fromMin) / (fromMax - fromMin)) * (toMax - toMin) + toMin;
-  }
-  
-  // Basic line chart visualization using HTML/CSS
-  const renderSimpleChart = () => {
-    if (correlationData.length === 0) return null;
-    
-    // Generate chart legend
-    const legendItems = [
-      { label: 'IZOF', color: '#10B981' },
-      { label: 'Momentum', color: '#F59E0B' },
-      { label: 'Flow', color: '#3B82F6' },
-      { label: 'sAA', color: '#EF4444' },
-      { label: 'Performance', color: '#6366F1' }
-    ];
-    
-    return (
-      <div className="mb-6">
-        <div className="flex flex-wrap gap-4 mb-2 justify-center">
-          {legendItems.map((item) => (
-            <div key={item.label} className="flex items-center">
-              <div className="w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: item.color }}></div>
-              <span className="text-sm font-medium text-gray-800">{item.label}</span>
-            </div>
-          ))}
-        </div>
-        
-        <div className="relative h-64 border-b border-l border-gray-300">
-          {/* Y-axis labels */}
-          <div className="absolute -left-8 top-0 h-full flex flex-col justify-between text-xs font-medium text-gray-700">
-            <span>100</span>
-            <span>75</span>
-            <span>50</span>
-            <span>25</span>
-            <span>0</span>
-          </div>
-          
-          {/* X-axis labels */}
-          <div className="absolute bottom-0 left-0 w-full flex justify-between text-xs font-medium text-gray-700">
-            {correlationData.map((point) => (
-              <span key={point.timePoint} className="transform -translate-x-1/2">
-                {point.timePoint}
-              </span>
-            ))}
-          </div>
-          
-          {/* Chart area with mock lines */}
-          <div className="absolute inset-0 p-4">
-            <div className="h-full w-full relative">
-              {/* Visual placeholder for a line chart - in a real implementation, these would be SVG lines */}
-              <div className="absolute top-1/4 left-0 right-0 border-t border-gray-200"></div>
-              <div className="absolute top-1/2 left-0 right-0 border-t border-gray-200"></div>
-              <div className="absolute top-3/4 left-0 right-0 border-t border-gray-200"></div>
-              
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-gray-700 text-sm font-medium">
-                  Chart visualization requires Recharts library.
-                  <br />
-                  See data table below for values.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
   // Return placeholder when no data is available
   if (correlationData.length === 0) {
     return (
@@ -220,12 +132,40 @@ const CorrelationDashboard: React.FC<CorrelationDashboardProps> = ({
     );
   }
 
+  // Prepare data for chart
+  const chartData = correlationData.map(point => ({
+    name: point.timePoint,
+    IZOF: Math.round(point.izof),
+    Momentum: Math.round(point.momentum),
+    Flow: Math.round(point.flow),
+    sAA: Math.round(point.saa),
+    Performance: Math.round(point.performanceScore)
+  }));
+
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mt-6">
       <h2 className="text-xl font-bold mb-4 text-gray-900">Correlation Dashboard</h2>
       
-      {/* Simple Chart Visualization */}
-      {renderSimpleChart()}
+      {/* Chart Visualization using Recharts */}
+      <div className="mb-6 h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis domain={[0, 100]} />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="IZOF" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="Momentum" stroke="#F59E0B" strokeWidth={2} dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="Flow" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="sAA" stroke="#EF4444" strokeWidth={2} dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="Performance" stroke="#6366F1" strokeWidth={2} dot={{ r: 4 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
       
       {/* Data Table */}
       <div className="overflow-x-auto mb-6">

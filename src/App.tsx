@@ -10,6 +10,7 @@ function App() {
   const [currentQuarter, setCurrentQuarter] = useState<number>(1);
   const [timelineEvents, setTimelineEvents] = useState<EventData[]>([]);
   const [currentTimelinePoint, setCurrentTimelinePoint] = useState<number>(1);
+  
   // Refs to access component methods
   const gameClockRef = useRef<any>(null);
   const playerPanelRef = useRef<{
@@ -47,7 +48,20 @@ function App() {
   // Handle event block generation completion
   const handleEventGenerated = (eventData: EventData) => {
     console.log("Event block generated:", eventData);
-    setTimelineEvents(prev => [...prev, eventData]);
+    
+    // Deep clone eventData to avoid mutation issues
+    const eventDataCopy: EventData = {
+      ...eventData,
+      surveyResponses: eventData.surveyResponses ? {...eventData.surveyResponses} : null
+    };
+    
+    setTimelineEvents(prev => {
+      // Create a new array with the deep-cloned event data
+      const newEvents = [...prev, eventDataCopy];
+      console.log("Updated timeline events array:", newEvents);
+      return newEvents;
+    });
+    
     advanceTimelinePoint();
   };
   
@@ -61,52 +75,48 @@ function App() {
   };
   
   // Handle the enhanced timeline data push with complete data
-  // This is the key part of App.tsx that handles the complete timeline data push
-
-// Handle the enhanced timeline data push with complete data
-const handleCompleteTimelineDataPush = (completeData: CompleteTimelineData) => {
-  console.log("Received complete data from PlayerPanel:", completeData);
-  const { timelinePoint, stats, surveyResponses, saaValue, saaLevel } = completeData;
-  
-  // Convert stats object to array of actions for the EventData format
-  const actions: StatType[] = [];
-  
-  // Convert stats object to array of actions
-  Object.entries(stats).forEach(([type, count]) => {
-    for (let i = 0; i < count; i++) {
-      actions.push(type as StatType);
-    }
-  });
-  
-  // Verify we have the survey data
-  console.log("Survey responses being passed to EventData:", surveyResponses);
-  
-  // Create a new event data entry with all collected data
-  const newEventData: EventData = {
-    timelinePoint: timelinePoint,
-    quarter: currentQuarter,
-    timestamp: new Date(),
-    actions: actions,
-    surveyResponses: surveyResponses,
-    saaValue: saaValue,
-    saaLevel: saaLevel
+  const handleCompleteTimelineDataPush = (completeData: CompleteTimelineData) => {
+    console.log("Received complete data from PlayerPanel:", completeData);
+    
+    // Create deep copies of all nested objects to prevent reference issues
+    const surveyResponses = completeData.surveyResponses ? {...completeData.surveyResponses} : null;
+    
+    // Convert stats object to array of actions for the EventData format
+    const actions: StatType[] = [];
+    
+    // Convert stats object to array of actions
+    Object.entries(completeData.stats).forEach(([type, count]) => {
+      for (let i = 0; i < count; i++) {
+        actions.push(type as StatType);
+      }
+    });
+    
+    // Create a new event data entry with all collected data
+    const newEventData: EventData = {
+      timelinePoint: completeData.timelinePoint,
+      quarter: currentQuarter,
+      timestamp: new Date(),
+      actions: actions,
+      surveyResponses: surveyResponses,
+      saaValue: completeData.saaValue,
+      saaLevel: completeData.saaLevel
+    };
+    
+    console.log("Creating new EventData with survey responses:", newEventData);
+    
+    // Add the new event data to the timeline events
+    setTimelineEvents(prev => {
+      const updated = [...prev, newEventData];
+      console.log("Updated timeline events:", updated);
+      return updated;
+    });
+    
+    // Important: Ensure the setState has completed before advancing the timeline
+    setTimeout(() => {
+      // Advance to next timeline point
+      advanceTimelinePoint();
+    }, 100);
   };
-  
-  console.log("Creating new EventData with survey responses:", newEventData);
-  
-  // Add the new event data to the timeline events
-  setTimelineEvents(prev => {
-    const updated = [...prev, newEventData];
-    console.log("Updated timeline events:", updated);
-    return updated;
-  });
-  
-  // Important: Ensure the setState has completed before advancing the timeline
-  setTimeout(() => {
-    // Advance to next timeline point
-    advanceTimelinePoint();
-  }, 100);
-};
   
   // Register refs when components mount
   const registerPlayerPanelRef = (methods: any) => {

@@ -3,6 +3,7 @@ import { StatType } from './PlayerPanel';
 import { SurveyResponses } from './SurveyModal';
 import SurveyModal from './SurveyModal';
 import SAADisplay, { SAALevel } from './SAADisplay';
+import { calculateSAAValue } from '../utils/calculationUtils';
 
 export type EventData = {
   timelinePoint: number;
@@ -65,30 +66,6 @@ const EventBlockGenerator: React.FC<EventBlockGeneratorProps> = ({
     return selectedActions;
   };
   
-  // Calculate sAA value based on survey responses
-  const calculateSAAValue = (responses: SurveyResponses): { value: number, level: SAALevel } => {
-    const baseValue = 30; // Base sAA value
-    
-    // Add contribution from each survey response
-    const arousalContribution = responses.emotionalArousal * 2; // 2-18 contribution
-    const momentumContribution = responses.momentum * 1.5; // 1.5-13.5 contribution
-    const flowContribution = responses.flow * 3; // 3-27 contribution
-    
-    // Calculate total with some randomness
-    const randomFactor = Math.random() * 10 - 5; // -5 to +5 random adjustment
-    const calculatedValue = Math.round(baseValue + arousalContribution + momentumContribution + flowContribution + randomFactor);
-    
-    // Determine level based on value
-    let level: SAALevel = 'moderate';
-    if (calculatedValue < 50) level = 'low';
-    else if (calculatedValue > 80) level = 'high';
-    
-    return {
-      value: calculatedValue,
-      level
-    };
-  };
-  
   // Handle the complete event block generation
   const generateEventBlock = async () => {
     if (isGenerating) return;
@@ -124,14 +101,19 @@ const EventBlockGenerator: React.FC<EventBlockGeneratorProps> = ({
   
   // Handle survey submission
   const handleSurveySubmit = (responses: SurveyResponses) => {
+    console.log("Survey submitted to EventBlockGenerator:", responses);
+    
+    // Create a deep copy of the responses to avoid reference issues
+    const surveyResponses = { ...responses };
+    
     // Update current event data
     setCurrentEventData(prev => ({
       ...prev,
-      surveyResponses: responses
+      surveyResponses: surveyResponses
     }));
     
-    // Calculate and display sAA value
-    const saaResult = calculateSAAValue(responses);
+    // Calculate and display sAA value using the utility function
+    const saaResult = calculateSAAValue(surveyResponses);
     setSaaData(saaResult);
     setShowSAA(true);
     
@@ -141,6 +123,9 @@ const EventBlockGenerator: React.FC<EventBlockGeneratorProps> = ({
       saaValue: saaResult.value,
       saaLevel: saaResult.level
     }));
+    
+    // Close survey modal
+    setIsSurveyOpen(false);
     
     // Advance game time after a delay
     setTimeout(() => {
@@ -153,13 +138,14 @@ const EventBlockGenerator: React.FC<EventBlockGeneratorProps> = ({
         const finalEventData: EventData = {
           timelinePoint,
           quarter: currentQuarter, 
-          timestamp: currentEventData.timestamp!, // Use the timestamp from current event data
+          timestamp: currentEventData.timestamp || new Date(),
           actions: currentEventData.actions || [],
-          surveyResponses: responses,
+          surveyResponses: surveyResponses,
           saaValue: saaResult.value,
           saaLevel: saaResult.level
         };
         
+        console.log("Final event data being sent to parent:", finalEventData);
         onEventGenerated(finalEventData);
       }
       
